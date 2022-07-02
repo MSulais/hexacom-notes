@@ -1,5 +1,5 @@
-import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
+import 'package:animated_text_kit/animated_text_kit.dart';
 
 void main() {
   runApp(const MyApp());
@@ -60,6 +60,38 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
 
   final List<Map<String, dynamic>> _notes = [];
+
+  void _createNote() async {
+    Map<String, dynamic> newNote = await Navigator.push(
+      context, 
+      MaterialPageRoute(
+        builder: (context) => const NotePage()
+      )
+    );
+    if (
+        (newNote['title'] as String).trim().isEmpty 
+        && (newNote['description'] as String).trim().isEmpty
+      ) return;
+
+    setState((){
+      _notes.add(newNote);
+    });
+  }
+
+  void _showAboutDialog(){
+    Navigator.pop(context); // dismiss drawer
+    showAboutDialog(
+      context: context, 
+      applicationIcon: Image.asset(
+        'assets/image1.png', 
+        width: 48, 
+        height: 48, 
+        filterQuality: FilterQuality.medium
+      ),
+      applicationName: 'Notes',
+      applicationVersion: 'v1.0.0'
+    );
+  }
 
   void _onEditNote(int index) async {
     Map<String, dynamic> updateNote = await Navigator.push(
@@ -125,7 +157,7 @@ class _HomePageState extends State<HomePage> {
         animatedTexts: [
           TypewriterAnimatedText(
             'Notes app', 
-            textStyle: Theme.of(context).textTheme.headline3, 
+            textStyle: theme.textTheme.headline3, 
             speed: const Duration(milliseconds: 150)
           ),
         ],
@@ -146,20 +178,7 @@ class _HomePageState extends State<HomePage> {
         ListTile(
           leading: const Icon(Icons.info_outline_rounded),
           title: const Text('About app'),
-          onTap: (){
-            Navigator.pop(context); // dismiss drawer
-            showAboutDialog(
-              context: context, 
-              applicationIcon: Image.asset(
-                'assets/image1.png', 
-                width: 48, 
-                height: 48, 
-                filterQuality: FilterQuality.medium
-              ),
-              applicationName: 'Notes',
-              applicationVersion: 'v1.0.0'
-            );
-          },
+          onTap: () => _showAboutDialog(),
         )
       ]),
     );
@@ -167,22 +186,7 @@ class _HomePageState extends State<HomePage> {
     Widget floatingActionButton = FloatingActionButton.extended(
       icon: const Icon(Icons.add),
       label: const Text('New note'),
-      onPressed: () async {
-        Map<String, dynamic> newNote = await Navigator.push(
-          context, 
-          MaterialPageRoute(
-            builder: (context) => const NotePage()
-          )
-        );
-        if (
-            (newNote['title'] as String).trim().isEmpty 
-            && (newNote['description'] as String).trim().isEmpty
-          ) return;
-
-        setState((){
-          _notes.add(newNote);
-        });
-      }
+      onPressed: () => _createNote()
     );
 
     Widget emptyWidget = SizedBox.expand(child: Column(
@@ -194,46 +198,46 @@ class _HomePageState extends State<HomePage> {
       ]
     ));
 
-    Widget body = _notes.isEmpty? emptyWidget : ListView.builder(
-      itemCount: _notes.length,
-      itemBuilder: (context, index){
-
-        String title = _notes[index]['title'].trim();
-        String description = _notes[index]['description'].trim();
-        Color? color = _notes[index]['color'];
-
-        return Dismissible(
-          onDismissed: (direction) => _notes.removeAt(index),
-          background: Row(children: const [
-            SizedBox(width: 32),
-            Icon(Icons.delete_outline),
-            Spacer(),
-          ]),
-          secondaryBackground: Row(children: const [
-            Spacer(),
-            Icon(Icons.delete_outline),
-            SizedBox(width: 32),
-          ]),
-          key: Key(index.toString()),
-          child: Container(
-            margin: EdgeInsets.fromLTRB(8, index == 0? 4 : 0, 8, 4),
-            decoration: BoxDecoration(
-              color: color?.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(16)
-            ),
-            child: ListTile(
-              shape: RoundedRectangleBorder(
+    Widget body = _notes.isEmpty? emptyWidget : Scrollbar(
+      child: ListView.builder(
+        itemCount: _notes.length,
+        itemBuilder: (context, index){
+    
+          String title = _notes[index]['title'].trim();
+          String description = _notes[index]['description'].trim();
+          Color? color = _notes[index]['color'];
+    
+          return Dismissible(
+            onDismissed: (DismissDirection direction) => _notes.removeAt(index),
+            background: Row(children: const [
+              SizedBox(width: 32),
+              Icon(Icons.delete_outline),
+              Spacer(),
+            ]),
+            secondaryBackground: Row(children: const [
+              Spacer(),
+              Icon(Icons.delete_outline),
+              SizedBox(width: 32),
+            ]),
+            key: Key(index.toString()),
+            child: Container(
+              margin: EdgeInsets.fromLTRB(8, index == 0? 4 : 0, 8, 4),
+              decoration: BoxDecoration(
+                color: color?.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(16)
               ),
-              title: title.isEmpty? null : Text(title),
-              subtitle: description.isEmpty
-                ? null 
-                : Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
-              onTap: () => _onEditNote(index)
+              child: ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                title: title.isEmpty? null : Text(title),
+                subtitle: description.isEmpty
+                  ? null 
+                  : Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
+                onTap: () => _onEditNote(index)
+              ),
             ),
-          ),
-        );
-      }
+          );
+        }
+      ),
     );
 
     PreferredSizeWidget appBar = AppBar(
@@ -242,19 +246,14 @@ class _HomePageState extends State<HomePage> {
         if (_notes.isNotEmpty) PopupMenuButton(
           elevation: 4.0,
           itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'Clear all',
-              child: Text('Clear all')
-            )
+            const PopupMenuItem(value: 'Clear all', child: Text('Clear all'))
           ], 
           onSelected: (value) async {
             switch (value){
               case 'Clear all': 
                 bool isClear = await _showAlertDialog() ?? false;
                 if (isClear != true) return;
-                setState((){
-                  _notes.clear();
-                });
+                setState(() => _notes.clear());
             }
           },
         )
@@ -300,6 +299,17 @@ class _NotePageState extends State<NotePage> {
       ['Pink'  , Colors.pink  ], 
       ['None'  , null]
     ];
+    Widget colorWidget(int index) => Container(
+      width: 40, height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: colors[index][1],
+        border: Border.all(
+          color: colors[index][1] ?? Theme.of(context).iconTheme.color!, 
+          width: 2.5
+        ),
+      ),
+    );
     showDialog(
       context: context, 
       builder: (context) => SimpleDialog(
@@ -310,17 +320,7 @@ class _NotePageState extends State<NotePage> {
           leading: Stack(
             alignment: AlignmentDirectional.center,
             children: [
-              Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors[index][1],
-                  border: Border.all(
-                    color: colors[index][1] ?? Theme.of(context).iconTheme.color!, 
-                    width: 2.5
-                  ),
-                ),
-              ), 
+              colorWidget(index), 
               if (_noteColor == colors[index][1]) 
                   const Icon(Icons.check_circle_outline, color: Colors.white)
             ]
@@ -331,7 +331,7 @@ class _NotePageState extends State<NotePage> {
             setState(() => _noteColor = colors[index][1]);
           }
         )),
-      )
+      ) 
     );
   }
 
@@ -423,17 +423,17 @@ class _NotePageState extends State<NotePage> {
 
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pop(
-          context, {
-            'title': _title.text, 
-            'description': _description.text, 
-            'color': _noteColor
-          }
-        );
-        return Future.value(false);
+        Navigator.pop(context, {
+          'title': _title.text, 
+          'description': _description.text, 
+          'color': _noteColor
+        });
+        return false;
       },
       child: Scaffold(
-        backgroundColor: _noteColor == null? null : (_noteColor! as MaterialColor)[darkMode? 900 : 100],
+        backgroundColor: _noteColor == null
+          ? null 
+          : (_noteColor! as MaterialColor)[darkMode? 900 : 100],
         appBar: appBar,
         body: body,
       ),
